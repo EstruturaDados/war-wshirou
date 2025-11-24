@@ -3,95 +3,134 @@
 #include <string.h>
 #include <time.h>
 
+#define N_TERRITORIOS 5
+#define MAX_NOME 50
+#define MAX_COR 20
+
 typedef struct {
-    char nome[50];
-    char cor[20];
+    char nome[MAX_NOME];
+    char cor[MAX_COR];
     int tropas;
 } Territorio;
 
-void cadastrarTerritorios(Territorio *mapa, int n);
-void exibirMapa(Territorio *mapa, int n);
-void batalhar(Territorio *atacante, Territorio *defensor);
+typedef enum {
+    MISSAO_DESTRUIR_VERDE = 1,
+    MISSAO_CONQUISTAR_3 = 2
+} Missao;
 
+// ======= DECLARAÇÃO DAS FUNÇÕES =======
+void inicializarTerritorios(Territorio *mapa);
+void exibirMapa(const Territorio *mapa);
+int menuPrincipal();
+void realizarAtaque(Territorio *mapa);
+void batalhar(Territorio *atacante, Territorio *defensor);
+Missao sortearMissao();
+void exibirMissao(Missao m);
+int verificarMissao(const Territorio *mapa, Missao m);
+
+// ======= PROGRAMA PRINCIPAL =======
 int main() {
     srand(time(NULL));
 
-    int n = 5;
-    Territorio *mapa = (Territorio *) calloc(n, sizeof(Territorio));
+    Territorio mapa[N_TERRITORIOS];
+    inicializarTerritorios(mapa);
 
-    if (mapa == NULL) {
-        printf("Erro ao alocar memoria!\n");
-        return 1;
-    }
+    Missao missaoJogador = sortearMissao();
 
-    cadastrarTerritorios(mapa, n);
+    printf("=== MISSÃO SORTEADA ===\n");
+    exibirMissao(missaoJogador);
 
-    int escolhaAtacante, escolhaDefensor;
+    int opcao;
 
-    while (1) {
-        exibirMapa(mapa, n);
+    while ((opcao = menuPrincipal()) != 0) {
+        switch (opcao) {
+            case 1:
+                realizarAtaque(mapa);
+                break;
 
-        printf("\nEscolha o território ATACANTE (1 a 5, 0 para sair): ");
-        scanf("%d", &escolhaAtacante);
-        if (escolhaAtacante == 0) break;
+            case 2:
+                if (verificarMissao(mapa, missaoJogador)) {
+                    printf("\n🎉 PARABÉNS! Você completou a missão!\n");
+                    return 0;
+                } else {
+                    printf("\n📌 Missão ainda não concluída.\n");
+                    exibirMissao(missaoJogador);
+                }
+                break;
 
-        printf("Escolha o território DEFENSOR (1 a 5): ");
-        scanf("%d", &escolhaDefensor);
-
-        if (escolhaAtacante < 1 || escolhaAtacante > 5 ||
-            escolhaDefensor < 1 || escolhaDefensor > 5 ||
-            escolhaAtacante == escolhaDefensor) {
-            printf("\n❌ Escolha inválida!\n");
-            continue;
+            default:
+                printf("\n❌ Opção inválida!\n");
         }
-
-        batalhar(&mapa[escolhaAtacante - 1], &mapa[escolhaDefensor - 1]);
     }
 
-    free(mapa);
+    printf("\nJogo encerrado.\n");
     return 0;
 }
 
-void cadastrarTerritorios(Territorio *mapa, int n) {
-    printf("=== Cadastro dos Territorios ===\n");
+// ======= FUNÇÕES =======
 
-    for (int i = 0; i < n; i++) {
-        printf("\nTerritório %d:\n", i + 1);
+// Inicialização automática
+void inicializarTerritorios(Territorio *mapa) {
+    const char *nomes[] = {"Norte", "Sul", "Leste", "Oeste", "Centro"};
+    const char *cores[] = {"Vermelho", "Azul", "Verde", "Amarelo", "Preto"};
+    const int tropasIniciais[] = {5, 4, 6, 3, 4};
 
-        printf("Nome: ");
-        getchar(); // limpar buffer
-        fgets(mapa[i].nome, 50, stdin);
-        mapa[i].nome[strcspn(mapa[i].nome, "\n")] = '\0';
-
-        printf("Cor do Exército: ");
-        fgets(mapa[i].cor, 20, stdin);
-        mapa[i].cor[strcspn(mapa[i].cor, "\n")] = '\0';
-
-        printf("Número de tropas: ");
-        scanf("%d", &mapa[i].tropas);
+    for (int i = 0; i < N_TERRITORIOS; i++) {
+        strcpy(mapa[i].nome, nomes[i]);
+        strcpy(mapa[i].cor, cores[i]);
+        mapa[i].tropas = tropasIniciais[i];
     }
 }
 
-void exibirMapa(Territorio *mapa, int n) {
+void exibirMapa(const Territorio *mapa) {
     printf("\n==== MAPA ATUAL ====\n");
-    for (int i = 0; i < n; i++) {
-        printf("%d) %-12s | Exército: %-10s | Tropas: %d\n",
+    for (int i = 0; i < N_TERRITORIOS; i++) {
+        printf("%d) %-10s | Cor: %-10s | Tropas: %d\n",
                i + 1, mapa[i].nome, mapa[i].cor, mapa[i].tropas);
     }
 }
 
+int menuPrincipal() {
+    printf("\n===== MENU =====\n");
+    printf("1 - Atacar\n");
+    printf("2 - Verificar Missão\n");
+    printf("0 - Sair\n");
+    printf("Escolha: ");
+
+    int op;
+    scanf("%d", &op);
+    return op;
+}
+
+void realizarAtaque(Territorio *mapa) {
+    exibirMapa(mapa);
+
+    int a, d;
+    printf("\nEscolha ATACANTE (1 a 5): ");
+    scanf("%d", &a);
+    printf("Escolha DEFENSOR (1 a 5): ");
+    scanf("%d", &d);
+
+    if (a < 1 || a > 5 || d < 1 || d > 5 || a == d) {
+        printf("\n❌ Ataque inválido!\n");
+        return;
+    }
+
+    batalhar(&mapa[a - 1], &mapa[d - 1]);
+}
+
 void batalhar(Territorio *atacante, Territorio *defensor) {
     if (atacante->tropas <= 1) {
-        printf("\n❌ O atacante precisa ter pelo menos 2 tropas para atacar!\n");
+        printf("\n❌ O atacante precisa de pelo menos 2 tropas!\n");
         return;
     }
 
     int dadoA = rand() % 6 + 1;
     int dadoD = rand() % 6 + 1;
 
-    printf("\n🎲 Dados rolados:");
-    printf("\nAtacante (%s): %d", atacante->nome, dadoA);
-    printf("\nDefensor  (%s): %d\n", defensor->nome, dadoD);
+    printf("\n🎲 Dados:\n");
+    printf("Atacante (%s, %s): %d\n", atacante->nome, atacante->cor, dadoA);
+    printf("Defensor  (%s, %s): %d\n", defensor->nome, defensor->cor, dadoD);
 
     if (dadoA >= dadoD) {
         printf("\n🔥 Ataque bem-sucedido!\n");
@@ -100,14 +139,58 @@ void batalhar(Territorio *atacante, Territorio *defensor) {
         if (defensor->tropas <= 0) {
             printf("🏴 Território %s foi conquistado!\n", defensor->nome);
 
-            // O exército atacante ocupa o território
             strcpy(defensor->cor, atacante->cor);
-            defensor->tropas = 1;          // defensor reinicia com tropa mínima
-            atacante->tropas -= 1;         // atacante desloca 1 tropa
+            defensor->tropas = 1;
+            atacante->tropas--;
         }
-
     } else {
-        printf("\n🛡 Defesa bem-sucedida! O atacante perde 1 tropa.\n");
+        printf("\n🛡 Defesa bem-sucedida! Atacante perde 1 tropa.\n");
         atacante->tropas--;
     }
+}
+
+// Sorteia a missão do jogador
+Missao sortearMissao() {
+    int r = rand() % 2; // 0 ou 1
+    return (r == 0) ? MISSAO_DESTRUIR_VERDE : MISSAO_CONQUISTAR_3;
+}
+
+// Exibe descrição da missão
+void exibirMissao(Missao m) {
+    printf("\n🎯 Sua missão: ");
+    if (m == MISSAO_DESTRUIR_VERDE) {
+        printf("Destruir completamente o exército Verde.\n");
+    } else {
+        printf("Conquistar 3 territórios inimigos.\n");
+    }
+}
+
+// Verifica se a missão foi concluída
+int verificarMissao(const Territorio *mapa, Missao m) {
+    if (m == MISSAO_DESTRUIR_VERDE) {
+
+        for (int i = 0; i < N_TERRITORIOS; i++) {
+            if (strcmp(mapa[i].cor, "Verde") == 0 && mapa[i].tropas > 0) {
+                return 0; // ainda existe território verde vivo
+            }
+        }
+        return 1; // todos verdes eliminados
+
+    } else if (m == MISSAO_CONQUISTAR_3) {
+
+        // contar quantos territórios têm a mesma cor do jogador inicial
+        // o jogador é o dono da cor do território 1 (por exemplo)
+        const char *corJogador = mapa[0].cor;
+        int count = 0;
+
+        for (int i = 0; i < N_TERRITORIOS; i++) {
+            if (strcmp(mapa[i].cor, corJogador) == 0) {
+                count++;
+            }
+        }
+
+        return count >= 3;
+    }
+
+    return 0;
 }
